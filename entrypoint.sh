@@ -36,6 +36,13 @@ if [ ! -e /home/claude/.config/gh ]; then
 fi
 chown -R claude:claude /home/claude/.claude/.gh-config /home/claude/.config 2>/dev/null || true
 
+# The gh token itself survives via the symlink above, but the git
+# credential-helper wiring that connects git to it lives in ~/.gitconfig -
+# a file directly in $HOME, not under either persistent volume, so it's
+# wiped every recreate same as everything else in this list. Cheap to just
+# regenerate it on every boot rather than persist it.
+su - claude -c "gh auth setup-git" 2>/dev/null || true
+
 # npm's global install prefix (/usr/local) is root-owned since the image
 # installs @anthropic-ai/claude-code as root at build time, but the CLI runs
 # as the unprivileged claude user - without this, self-update silently fails
