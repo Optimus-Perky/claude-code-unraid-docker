@@ -79,6 +79,45 @@ a debugging session.
   `/etc/localtime` symlinked to the right zoneinfo file at build time (see
   the `TZ` build arg in the Dockerfile) — not an env var.
 
+## Known vulnerability scan findings, and why they're left as-is
+
+Docker Scout / Trivy will flag a handful of CVEs on this image that aren't
+independently fixable from this Dockerfile. Rather than re-litigate these
+every time a scan is re-run, here's the actual state as of the last review:
+
+- **`golang.org/x/mod` (e.g. CVE-2026-56865/56864)**: real and unfixed at the
+  version `github-cli` currently embeds, but the vulnerable code path is in
+  Go's *build-time* module-verification logic (a malicious GOPROXY forging
+  checksum data during `go mod tidy`/`go build`). This container only runs a
+  precompiled `gh` binary — the Go toolchain itself is never invoked here, so
+  that code path never executes. Real CVE, no exposure in this image's actual
+  usage.
+- **`github.com/docker/cli` (e.g. CVE-2025-15558)**: also genuinely vendored
+  inside `gh`, but the vulnerability is a **Windows-only** plugin-directory
+  hijack (`C:\ProgramData\Docker\cli-plugins`). This is a Linux/Alpine image.
+  Not applicable on this platform at all.
+- **`undici` (e.g. CVE-2026-16728)**: bundled inside Node.js itself, not
+  something this Dockerfile installs. No fix has shipped upstream in
+  `node:22-alpine` yet — this one really is just pending an upstream release.
+- **`ip-address` / `brace-expansion` / `tar`**: all vendored *inside npm's
+  own* dependency tree (not something `npm install -g` lets you override),
+  typically one patch release behind whatever's fixed upstream. All are
+  DoS/SSRF-class bugs requiring either a malicious package install or
+  attacker-controlled network input — not something this container's actual
+  usage pattern exposes. Bumping `npm@latest` at build time (see Dockerfile)
+  already clears whatever's fixable this way; the rest clears itself on
+  npm's next patch release.
+- **`github-cli` itself**: deliberately installed from Alpine's `edge`
+  repository rather than the pinned stable release, specifically because the
+  stable build embeds older, more-vulnerable versions of the three Go
+  modules above. This trades "pinned to a stable Alpine release" for "gets
+  Alpine's newest build of one package" — expect this line in the Dockerfile
+  to need revisiting if `apk add --repository=...edge...` ever breaks
+  against a future stable base.
+
+If a scan turns up something *not* on this list, it's worth investigating
+properly rather than assuming it belongs here.
+
 ## Setup
 
 1. Copy `compose.yaml.example` to `compose.yaml` and fill in:
