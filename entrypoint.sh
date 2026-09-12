@@ -92,6 +92,26 @@ if [ ! -s /home/claude/.claude.json ] && [ -s "$CLAUDE_JSON_PERSIST" ]; then
     chown claude:claude /home/claude/.claude.json
 fi
 
+# Force folder-trust acceptance for this container's own paths on every boot.
+# Claude Code has a known bug (github.com/anthropics/claude-code/issues/36403)
+# where hasTrustDialogAccepted in ~/.claude.json doesn't reliably survive a
+# restart even once accepted, re-prompting every time. There's nothing to fix
+# on the container side for that upstream bug - just re-assert the flag before
+# claude starts, which is Claude Code's own documented workaround.
+node -e "
+const fs = require('fs');
+const path = '/home/claude/.claude.json';
+let j = {};
+try { j = JSON.parse(fs.readFileSync(path)); } catch (e) {}
+j.projects = j.projects || {};
+for (const p of ['/home/claude', '/home/claude/workspace']) {
+    j.projects[p] = j.projects[p] || {};
+    j.projects[p].hasTrustDialogAccepted = true;
+}
+fs.writeFileSync(path, JSON.stringify(j));
+" 2>/dev/null || true
+chown claude:claude /home/claude/.claude.json 2>/dev/null || true
+
 ( while true; do
     sleep 20
     if [ -s /home/claude/.claude.json ] \

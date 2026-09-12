@@ -18,10 +18,18 @@ RUN apk upgrade --no-cache \
         ca-certificates \
         ripgrep \
         tzdata \
-        github-cli \
-    && npm install -g @anthropic-ai/claude-code \
+    && npm install -g npm@latest @anthropic-ai/claude-code \
     && ln -sf /usr/share/zoneinfo/$TZ /etc/localtime \
     && echo "$TZ" > /etc/timezone
+
+# github-cli comes from Alpine's edge repo, not the pinned stable release
+# this image is otherwise built on - the stable build (2.97.0) statically
+# embeds outdated golang.org/x/crypto, golang.org/x/mod and grpc-go versions
+# with known CVEs, which only a newer upstream Alpine build of the binary
+# itself can fix (nothing in this Dockerfile can patch a Go binary's
+# embedded transitive deps after the fact). Edge's build installs cleanly
+# against this stable base with no dependency conflicts.
+RUN apk add --no-cache --repository=https://dl-cdn.alpinelinux.org/alpine/edge/community github-cli
 
 RUN adduser -D -s /bin/bash claude \
     && mkdir -p /home/claude/.ssh /home/claude/workspace \
