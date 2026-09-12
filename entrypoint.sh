@@ -46,8 +46,12 @@ su - claude -c "gh auth setup-git" 2>/dev/null || true
 # npm's global install prefix (/usr/local) is root-owned since the image
 # installs @anthropic-ai/claude-code as root at build time, but the CLI runs
 # as the unprivileged claude user - without this, self-update silently fails
-# with "no write permission to npm prefix" every time it checks.
-chown -R claude:claude /usr/local/lib/node_modules /usr/local/bin/claude 2>/dev/null || true
+# with "no write permission to npm prefix" every time it checks. Chowning
+# just node_modules and the claude symlink isn't enough: npm's own
+# self-update needs to create/rename NEW entries directly inside
+# /usr/local/bin and /usr/local/lib themselves, which requires write
+# permission on those parent directories, not just their existing contents.
+chown -R claude:claude /usr/local/bin /usr/local/lib 2>/dev/null || true
 
 # Password persistence: /etc/shadow lives on the container's non-persistent
 # root filesystem, so without this the claude user's password reverts to
