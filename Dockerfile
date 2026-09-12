@@ -18,6 +18,7 @@ RUN apk upgrade --no-cache \
         ca-certificates \
         ripgrep \
         tzdata \
+        go \
     && npm install -g npm@latest @anthropic-ai/claude-code \
     && ln -sf /usr/share/zoneinfo/$TZ /etc/localtime \
     && echo "$TZ" > /etc/timezone
