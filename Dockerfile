@@ -6,7 +6,8 @@ FROM node:22-alpine
 # interactive shell here - see the README for why.
 ARG TZ=UTC
 
-RUN apk add --no-cache \
+RUN apk upgrade --no-cache \
+    && apk add --no-cache \
         openssh-server \
         openssh-client \
         shadow \
