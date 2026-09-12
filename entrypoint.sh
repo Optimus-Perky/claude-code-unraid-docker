@@ -21,6 +21,21 @@ fi
 
 chown -R claude:claude /home/claude/.claude /home/claude/workspace 2>/dev/null || true
 
+# gh (GitHub CLI) auth config: same non-persistence problem as everything
+# else here (~/.config lives outside the two real volumes, so `gh auth
+# login` gets silently wiped on every recreate). Fixed with a directory
+# symlink into the persistent volume instead of an env var override
+# (GH_CONFIG_DIR) - env vars don't reliably reach the actual shell here
+# for the same su/no-PAM reasons documented for TZ in the README, but a
+# symlink works regardless of how a shell gets started, and unlike the
+# ~/.claude.json file, gh writes individual files *inside* this directory
+# rather than replacing the directory itself, so a directory symlink holds.
+mkdir -p /home/claude/.claude/.gh-config /home/claude/.config
+if [ ! -e /home/claude/.config/gh ]; then
+    ln -sf /home/claude/.claude/.gh-config /home/claude/.config/gh
+fi
+chown -R claude:claude /home/claude/.claude/.gh-config /home/claude/.config 2>/dev/null || true
+
 # npm's global install prefix (/usr/local) is root-owned since the image
 # installs @anthropic-ai/claude-code as root at build time, but the CLI runs
 # as the unprivileged claude user - without this, self-update silently fails
