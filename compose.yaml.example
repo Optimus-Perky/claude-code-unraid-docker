@@ -1,0 +1,33 @@
+services:
+  claude-code:
+    build: .
+    container_name: claude-code
+    restart: unless-stopped
+    ports:
+      # host:container - pick a host port that doesn't clash with your own SSH (often 22)
+      - "2222:22"
+    environment:
+      # Your own SSH public key (never a private key) - paste the full line,
+      # e.g. the contents of ~/.ssh/id_ed25519.pub. Installed into
+      # authorized_keys on every container start (see entrypoint.sh).
+      - AUTHORIZED_KEY=ssh-ed25519 AAAA... your-key-comment
+      # Only used to seed the password on the very first-ever boot - after
+      # that the real hash is mirrored to the persistent volume and this
+      # value is ignored, so change it via `passwd` inside the container
+      # afterwards rather than editing this file. Pick your own value,
+      # don't leave this as-is.
+      - CLAUDE_PASSWORD=change-me-before-first-boot
+      # Optional - your IANA timezone, e.g. Europe/London, America/New_York.
+      # Affects container-wide time display (see README for why a plain TZ
+      # env var isn't enough on its own here).
+      - TZ=UTC
+    volumes:
+      # This one directory is what makes the instance persistent across
+      # restarts/rebuilds - Claude Code's own config, credentials, and
+      # conversation history all live here.
+      - ./data/claude-config:/home/claude/.claude
+      # Anywhere Claude should be able to read/write project files.
+      - ./data/workspace:/home/claude/workspace
+      # SSH host keys persisted here so clients don't see a "host key
+      # changed" warning every time you rebuild the image.
+      - ./data/ssh-host-keys:/etc/ssh/keys
