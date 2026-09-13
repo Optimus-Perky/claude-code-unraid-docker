@@ -32,6 +32,17 @@ RUN apk upgrade --no-cache \
 # against this stable base with no dependency conflicts.
 RUN apk add --no-cache --repository=https://dl-cdn.alpinelinux.org/alpine/edge/community github-cli
 
+# Headless Chromium, for actually visually checking web UI work (e.g.
+# UMMarr) from inside this container instead of just trusting curl/Go
+# tests - there's no display here, so this is only ever driven with
+# --headless --no-sandbox --disable-gpu, screenshotting to a file the
+# Read tool can then view. ttf-freefont is required for text to render
+# in screenshots at all - without it Chromium has no fonts and renders
+# blank boxes. This is a deliberately heavy addition (~300MB) specific to
+# this personal dev container, not something that belongs in an image
+# meant to be distributed/run by others.
+RUN apk add --no-cache chromium ttf-freefont
+
 RUN adduser -D -s /bin/bash claude \
     && mkdir -p /home/claude/.ssh /home/claude/workspace \
     && chown -R claude:claude /home/claude
